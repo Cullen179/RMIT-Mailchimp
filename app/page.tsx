@@ -42,8 +42,8 @@ export default function InputForm() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      url: "https://us14.api.mailchimp.com/3.0/lists",
-      authorization: "apikey 3216fdbda45f777e120fab83c3d789b4-us14",
+      url: "",
+      authorization: "",
     },
   });
 
