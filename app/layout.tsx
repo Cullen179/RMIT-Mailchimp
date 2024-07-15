@@ -16,7 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.className} + "min-h-screen bg-background font-sans antialiased py-10 px-20 dark "`}>{children}</body>
     </html>
   );
 }
