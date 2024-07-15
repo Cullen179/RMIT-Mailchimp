@@ -82,7 +82,7 @@ export default function InputForm() {
         emails.map((email: string) => ({ email }))
       );
 
-      const max_length = emails.reduce((w, r) => Math.max(w, r.length), 0);
+      const max_length = emails.reduce((w: number, r: string) => Math.max(w, r.length), 0);
       worksheet["!cols"] = [{ wch: max_length }];
 
       try {
