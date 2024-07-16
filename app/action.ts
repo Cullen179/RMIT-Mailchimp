@@ -1,4 +1,5 @@
 'use server';
+import { list } from "postcss";
 import { Member } from "./page";
 export async function getMailchimp(url: string, apiKey: string) {
   const mailchimpData = await fetch(url, {
@@ -15,7 +16,7 @@ export async function getMailchimp(url: string, apiKey: string) {
   return mailchimpData;
 }
 
-export async function getMembers(url: string, apiKey: string) {
+export async function getMembers(url: string, apiKey: string, listID: string) {
   const members = await fetch(url, {
     method: "GET",
     headers: {
@@ -24,11 +25,13 @@ export async function getMembers(url: string, apiKey: string) {
   })
     .then((res) => res.json())
     .then((data) => {
-        return {
-            listID: data.list_id,
-            memberID: data.id,
-            memberEmail: data.email_address,
-      } as Member;
+        return data.members.map((data: any) => {
+            return {
+                listID: listID,
+                memberID: data.id,
+                memberEmail: data.email_address,
+            } as Member;
+        });
     });
 
   return members;
