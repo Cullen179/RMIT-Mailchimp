@@ -49,8 +49,8 @@ export default function InputForm() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      url: "https://us14.api.mailchimp.com/3.0/lists?count=1",
-      authorization: "apikey 836df3e0db3dbcd1fad9abe0de62f08b-us14",
+      url: "https://us14.api.mailchimp.com/3.0/lists?count=1000",
+      authorization: "apikey aad4f665dbaf15c0baf4c75327407d74-us14",
     },
   });
 
@@ -61,32 +61,35 @@ export default function InputForm() {
 
       const workbook = XLSX.utils.book_new();
       const member_count = eachList.stats.member_count + eachList.stats.unsubscribe_count;
+
+      console.log("member_count: " + member_count);
       const offset = member_count % 1000 + 1;
       
       let memberData: Member[] = []; 
 
       for (let i = 0; i < offset + 1; i++) {
         let members = await getMailchimp(
-          `${url}/${eachList.id}/members?offset=${offset}&count=1000`,
+          `${url.substring(0, url.lastIndexOf("?"))}/${eachList.id}/members?offset=${offset}&count=1000`,
           authorization
         );
 
-        members.members?.map((eachMember: any) => {
-          return {
+        members.members.forEach((eachMember: any) => {
+          memberData.push({
             listID: eachList.id,
             memberID: eachMember.id,
             memberEmail: eachMember.email_address,
-          };
+          } as Member);
         });
-        memberData = memberData.concat(members);
       }
-        
+      
+      console.log(memberData);
 
       const memberSheet = XLSX.utils.json_to_sheet(memberData);
-      const max_memberID_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberID.length), 0);
-      const max_memberEmail_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberEmail.length), 0);
+
+      // const max_memberID_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberID.length), 0);
+      // const max_memberEmail_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberEmail.length), 0);
       
-      memberSheet["!cols"] = [{ wch: eachList.id.length }, { wch: max_memberID_length }, { wch: max_memberEmail_length }];
+      // memberSheet["!cols"] = [{ wch: eachList.id.length }, { wch: max_memberID_length }, { wch: max_memberEmail_length }];
       
       const listData = {
         listID: eachList.id,
