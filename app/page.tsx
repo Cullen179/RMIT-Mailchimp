@@ -28,10 +28,17 @@ const FormSchema = z.object({
   authorization: z.string(),
 });
 
-// interface ListAudience {
-//   name: string;
-//   list: string[] | string;
-// }
+interface Member {
+  listID: string,
+  memberID: string,
+  memberEmail: string,
+}
+
+interface List {
+  id: string,
+  name: string,
+  num_members: number,
+}
 
 export default function InputForm() {
   const [fetchData, setFetchData] = useState(null);
@@ -42,80 +49,76 @@ export default function InputForm() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      url: "",
-      authorization: "",
+      url: "https://us14.api.mailchimp.com/3.0/lists?count=1",
+      authorization: "apikey 836df3e0db3dbcd1fad9abe0de62f08b-us14",
     },
   });
 
   async function exportCSV(url: string, authorization: string, fetchData: any) {
-    // let allAudience: ListAudience[] = [];
-    const workbook = XLSX.utils.book_new();
-
+    
     // Collect promises from the map function
     const promises = fetchData.lists.map(async (eachList: any) => {
-      const name = eachList.name.replace(/[^a-zA-Z0-9]/g, "").slice(0, 30);
 
-      const members = await getMailchimp(
-        `${url}/${eachList.id}/members`,
-        authorization
-      );
-      const emails = members.members.map((eachMember: any) => {
-        // if (
-        //   allAudience.some(
-        //     (element) => element.name === eachMember.email_address
-        //   )
-        // ) {
-        //   const index = allAudience.findIndex(
-        //     (element) => element.name === eachMember.email_address
-        //   );
-        //   allAudience[index].list.push(eachList.name);
-        // } else {
-        //   allAudience.push({
-        //     name: eachMember.email_address,
-        //     list: [eachList.name],
-        //   });
-        // }
-        return eachMember.email_address;
-      });
+      const workbook = XLSX.utils.book_new();
+      const member_count = eachList.stats.member_count + eachList.stats.unsubscribe_count;
+      const offset = member_count % 1000 + 1;
+      
+      let memberData: Member[] = []; 
 
-      const worksheet = XLSX.utils.json_to_sheet(
-        emails.map((email: string) => ({ email }))
-      );
+      for (let i = 0; i < offset + 1; i++) {
+        let members = await getMailchimp(
+          `${url}/${eachList.id}/members?offset=${offset}&count=1000`,
+          authorization
+        );
 
-      const max_length = emails.reduce((w: number, r: string) => Math.max(w, r.length), 0);
-      worksheet["!cols"] = [{ wch: max_length }];
+        members.members?.map((eachMember: any) => {
+          return {
+            listID: eachList.id,
+            memberID: eachMember.id,
+            memberEmail: eachMember.email_address,
+          };
+        });
+        memberData = memberData.concat(members);
+      }
+        
+
+      const memberSheet = XLSX.utils.json_to_sheet(memberData);
+      const max_memberID_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberID.length), 0);
+      const max_memberEmail_length = memberData.reduce((w: number, r: Member) => Math.max(w, r.memberEmail.length), 0);
+      
+      memberSheet["!cols"] = [{ wch: eachList.id.length }, { wch: max_memberID_length }, { wch: max_memberEmail_length }];
+      
+      const listData = {
+        listID: eachList.id,
+        listName: eachList.name,
+        num_members: member_count,
+      };
+      
+      const listSheet = XLSX.utils.json_to_sheet([listData]);
+      listSheet["!cols"] = [{ wch: listData.listID.length }, { wch: listData.listName.length }, { wch: listData.num_members.toString().length }];
 
       try {
-        XLSX.utils.book_append_sheet(workbook, worksheet, name);
-        setProgress(progress => "Append sheet: " + name);
+        XLSX.utils.book_append_sheet(workbook, listSheet, "Audience List");
+        XLSX.utils.book_append_sheet(workbook, memberSheet, "Members");
+        XLSX.writeFile(workbook, eachList.name + ".xlsx", { compression: true });
+        setProgress(progress => "Append sheet: " + eachList.name);
       } catch (error) {
-        console.log("error append sheet: " + name);
+        console.log("error append sheet: " + eachList.name);
       }
     });
 
     // Wait for all promises to resolve
     await Promise.all(promises);
-
-    // allAudience = allAudience.map((eachAudience) => ({
-    //   name: eachAudience.name,
-    //   list: (eachAudience.list.join(",")),
-    // }));
-    // // Add the allAudience sheet if needed
-    // const allAudienceSheet = XLSX.utils.json_to_sheet(allAudience);
-    // const max_length = allAudience.reduce((w, r) => Math.max(w, r.name.length), 0);
-    // allAudienceSheet["!cols"] = [{ wch: max_length }];
-    // XLSX.utils.book_append_sheet(workbook, allAudienceSheet, "All Audience");
-
-    // Write the workbook to a file
-    XLSX.writeFile(workbook, "mailchimp.xlsx", { compression: true });
     setProgress(progress => "");
   }
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
+    setProgress(progress => "Fetching data...");
     const fetchData = await getMailchimp(data.url, data.authorization);
     await startTransition(() => {
-      setFetchData(fetchData);
+      setFetchData(data => fetchData);
     });
+    setProgress((progress) => "Exporting CSV...");
     exportCSV(data.url, data.authorization, fetchData);
   }
 
