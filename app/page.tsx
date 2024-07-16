@@ -49,8 +49,8 @@ export default function InputForm() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      url: "https://us14.api.mailchimp.com/3.0/lists?count=1000",
-      authorization: "apikey 4f765243d1b7e5fe69956d70da3e6bf0-us14",
+      url: "https://us14.api.mailchimp.com/3.0/lists?count=1",
+      authorization: "apikey 9ce422b9a408c888ab423b48710fe525-us14",
     },
   });
 
@@ -70,7 +70,8 @@ export default function InputForm() {
       for (let i = 0; i < offset + 1; i++) {
         let members = await getMembers(
           `${url.substring(0, url.lastIndexOf("?"))}/${eachList.id}/members?offset=${offset}&count=1000`,
-          authorization
+          authorization,
+          eachList.id
         );
 
         console.log(members);
