@@ -72,7 +72,7 @@ export default function InputForm() {
   async function exportCSV(url: string, authorization: string, fetchData: any) {
     
     // Collect promises from the map function
-    const promises = fetchData.lists.forEach(async (eachList: any) => {
+    const promises = fetchData.lists.map(async (eachList: any) => {
 
       const workbook = XLSX.utils.book_new();
       const member_count = eachList.stats.member_count + eachList.stats.unsubscribe_count;
