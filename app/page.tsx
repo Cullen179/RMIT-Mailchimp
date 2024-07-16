@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getMailchimp } from "./action";
+import { getMailchimp, getMembers } from "./action";
 import { useDeferredValue, useState, useTransition } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
@@ -28,7 +28,7 @@ const FormSchema = z.object({
   authorization: z.string(),
 });
 
-interface Member {
+export interface Member {
   listID: string,
   memberID: string,
   memberEmail: string,
@@ -50,7 +50,7 @@ export default function InputForm() {
     resolver: zodResolver(FormSchema),
     defaultValues: {
       url: "https://us14.api.mailchimp.com/3.0/lists?count=1000",
-      authorization: "apikey aad4f665dbaf15c0baf4c75327407d74-us14",
+      authorization: "apikey 4f765243d1b7e5fe69956d70da3e6bf0-us14",
     },
   });
 
@@ -68,18 +68,13 @@ export default function InputForm() {
       let memberData: Member[] = []; 
 
       for (let i = 0; i < offset + 1; i++) {
-        let members = await getMailchimp(
+        let members = await getMembers(
           `${url.substring(0, url.lastIndexOf("?"))}/${eachList.id}/members?offset=${offset}&count=1000`,
           authorization
         );
 
-        members.members.forEach((eachMember: any) => {
-          memberData.push({
-            listID: eachList.id,
-            memberID: eachMember.id,
-            memberEmail: eachMember.email_address,
-          } as Member);
-        });
+        console.log(members);
+        memberData.concat(members);
       }
       
       console.log(memberData);
@@ -118,6 +113,7 @@ export default function InputForm() {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setProgress(progress => "Fetching data...");
     const fetchData = await getMailchimp(data.url, data.authorization);
+    console.log(fetchData);
     await startTransition(() => {
       setFetchData(data => fetchData);
     });
