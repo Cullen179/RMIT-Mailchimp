@@ -49,35 +49,38 @@ export default function InputForm() {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      url: "https://us14.api.mailchimp.com/3.0/lists?count=1",
-      authorization: "apikey 9ce422b9a408c888ab423b48710fe525-us14",
+      url: "https://us14.api.mailchimp.com/3.0/lists?offset=1&count=1",
+      authorization: "apikey c9c1faba1e2a54efc973354d9a219178-us14",
     },
   });
+
+  async function getMembersData(url: string, authorization: string, listID: string, offset: number) {
+      let memberData: Member[] = []; 
+      for (let i = 0; i < offset + 1; i++) {        
+        let members = await getMembers(
+          `${url.substring(0, url.lastIndexOf("?"))}/${listID}/members?offset=${i}&count=1000`,
+          authorization,
+          listID
+        );
+        
+        memberData = memberData.concat(members);
+      }
+    console.log("Member Data: " + memberData);
+    return memberData;
+  }
 
   async function exportCSV(url: string, authorization: string, fetchData: any) {
     
     // Collect promises from the map function
-    const promises = fetchData.lists.map(async (eachList: any) => {
+    const promises = fetchData.lists.forEach(async (eachList: any) => {
 
       const workbook = XLSX.utils.book_new();
       const member_count = eachList.stats.member_count + eachList.stats.unsubscribe_count;
 
-      console.log("member_count: " + member_count);
-      const offset = member_count % 1000 + 1;
-      
-      let memberData: Member[] = []; 
+      const offset = Math.floor(member_count / 1000) + 1;
+      console.log("offset: " + offset);      
 
-      for (let i = 0; i < offset + 1; i++) {
-        let members = await getMembers(
-          `${url.substring(0, url.lastIndexOf("?"))}/${eachList.id}/members?offset=${offset}&count=1000`,
-          authorization,
-          eachList.id
-        );
-
-        console.log(members);
-        memberData.concat(members);
-      }
-      
+      const memberData = await getMembersData(url, authorization, eachList.id, offset);
       console.log(memberData);
 
       const memberSheet = XLSX.utils.json_to_sheet(memberData);
@@ -114,7 +117,6 @@ export default function InputForm() {
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     setProgress(progress => "Fetching data...");
     const fetchData = await getMailchimp(data.url, data.authorization);
-    console.log(fetchData);
     await startTransition(() => {
       setFetchData(data => fetchData);
     });
