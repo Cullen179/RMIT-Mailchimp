@@ -2,8 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { string, z } from "zod";
-import * as XLSX from "xlsx";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,10 +15,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getMailchimp, getMembers } from "./action";
+import { getMailchimp } from "@/app/action";
 import { useDeferredValue, useState, useTransition } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
+import { deleteList } from "../action";
 
 const FormSchema = z.object({
   url: z.string().url({
@@ -54,64 +54,9 @@ export default function InputForm() {
     },
   });
 
-  async function getMembersData(url: string, authorization: string, listID: string, offset: number) {
-      let memberData: Member[] = []; 
-      for (let i = 0; i < offset; i++) {        
-        let members = await getMembers(
-          `${url.substring(0, url.lastIndexOf("?"))}/${listID}/members?offset=${i}&count=500`,
-          authorization,
-          listID
-        );
-        
-        memberData = memberData.concat(members);
-      }
-    return memberData;
-  }
-
-  async function processList(eachList: any, url: string, authorization: string) {
-    const workbook = XLSX.utils.book_new();
-    const member_count =
-      eachList.stats.member_count + eachList.stats.unsubscribe_count;
-    console.log("member_count: " + member_count);
-
-    const offset = Math.floor(member_count / 500) + 1;
-
-    const memberData = await getMembersData(
-      url,
-      authorization,
-      eachList.id,
-      offset
-    );
-
-    const memberSheet = XLSX.utils.json_to_sheet(memberData);
-
-    const listData = {
-      listID: eachList.id,
-      listName: eachList.name,
-      num_members: member_count,
-    };
-
-    const listSheet = XLSX.utils.json_to_sheet([listData]);
-
-    listSheet["!cols"] = [
-      { wch: listData.listID.length },
-      { wch: listData.listName.length },
-      { wch: listData.num_members.toString().length },
-    ];
-
-    try {
-      XLSX.utils.book_append_sheet(workbook, listSheet, "Audience List");
-      XLSX.utils.book_append_sheet(workbook, memberSheet, "Members");
-      XLSX.writeFile(workbook, eachList.name + ".xlsx", { compression: true });
-      setProgress((progress) => "Append sheet: " + eachList.name);
-    } catch (error) {
-      console.log("error append sheet: " + eachList.name);
-    }
-  }
-
-  async function exportCSV(url: string, authorization: string, fetchData: any) {
+  async function deleteAllLists(url: string, authorization: string, fetchData: any) {
     for (const eachList of fetchData.lists) {
-      await processList(eachList, url, authorization);
+      await deleteList(`${url.substring(0, url.lastIndexOf("?"))}/${eachList.id}`, authorization, eachList.name);      setProgress((progress) => "Deleted list: " + eachList.name);
     }
   }
 
@@ -121,9 +66,9 @@ export default function InputForm() {
     startTransition(() => {
       setFetchData(data => fetchData);
     });
-    setProgress((progress) => "Exporting CSV...");
+    setProgress((progress) => "Deleting CSV...");
     
-    await exportCSV(data.url, data.authorization, fetchData);
+    await deleteAllLists(data.url, data.authorization, fetchData);
     setProgress((progress) => "");
   }
 
@@ -178,7 +123,7 @@ export default function InputForm() {
               disabled={progress !== ""}
             >
               {progress !== "" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Export Data
+              Delete Data
             </Button>
             <div className="text-slate-400">{progress}</div>
           </div>

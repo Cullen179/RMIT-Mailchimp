@@ -25,7 +25,7 @@ export async function getMembers(url: string, apiKey: string, listID: string) {
   })
     .then((res) => res.json())
       .then((data) => {
-          console.log("Raw:", data);
+
         return data.members.map((data: any) => {
             return {
                 listID: listID,
@@ -34,8 +34,17 @@ export async function getMembers(url: string, apiKey: string, listID: string) {
             } as Member;
         });
     });
-    console.log(members);
+    
   return members;
 }
 
+export async function deleteList(url: string, apiKey: string, listName: string) {
+  await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `${apiKey}`,
+    },
+  });
+  console.log("Deleted list: " + listName);
+}
 
